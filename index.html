@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Princess Dress-Up Adventure</title>
+<style>
+  :root {
+    --bg1:#fff4fb; --bg2:#ffeaf7; --panel:#ffffff; --line:#e6c6dd;
+    --accent:#e45aa5; --accent2:#8b5cf6;
+  }
+  html,body{margin:0;height:100%}
+  body{
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    background: radial-gradient(1200px 800px at 30% -10%, var(--bg2), var(--bg1) 40%, #ffffff 70%);
+    color:#5a2a4e; display:grid; place-items:center; padding:14px;
+  }
+  .wrap{ width:min(980px,96vw); }
+  h1{ text-align:center; margin:6px 0 10px; font-size:clamp(20px,4.5vw,32px); letter-spacing:.5px;}
+  .ui{ display:grid; grid-template-columns: 280px 1fr; gap:12px;}
+  @media (max-width:800px){ .ui{ grid-template-columns:1fr; } }
+
+  /* Stage */
+  .stage{
+    position:relative; background:linear-gradient(#fff, #fef6ff);
+    border:1px solid var(--line); border-radius:18px; box-shadow:0 6px 20px rgba(0,0,0,.06);
+    aspect-ratio: 3/4; width:100%; overflow:hidden;
+  }
+  .floor{
+    position:absolute; left:0; right:0; bottom:0; height:22%;
+    background: radial-gradient(60% 80% at 50% 0%, #fce8ff, #fff);
+    border-top:1px dashed #efd3eb;
+  }
+  /* Princess base */
+  .princess{ position:absolute; left:50%; top:54%; transform:translate(-50%,-50%); width:min(60%, 360px);}
+  /* Slots (where items go) */
+  .slot{ position:absolute; left:50%; transform:translateX(-50%); pointer-events:none; }
+  .slot.head{ top:22%; width:50%; }
+  .slot.body{ top:44%; width:70%; }
+  .slot.feet{ top:78%; width:48%; }
+  .slot.hand{ top:56%; width:50%; }
+
+  /* Palette */
+  .panel{
+    background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:10px;
+    box-shadow:0 6px 16px rgba(0,0,0,.06);
+  }
+  .tabs{ display:flex; gap:6px; margin-bottom:8px; flex-wrap:wrap;}
+  .tab{
+    padding:6px 10px; border:1px solid var(--line); border-radius:999px; background:#fff;
+    cursor:pointer; font-size:14px;
+  }
+  .tab.active{ background:linear-gradient(90deg,#ffd6ec,#e6d7ff); border-color:#d3b9e7; }
+  .grid{ display:grid; grid-template-columns: repeat(4, 1fr); gap:8px; }
+  .item{
+    background:#fff; border:1px solid var(--line); border-radius:12px; padding:6px; text-align:center;
+    cursor:grab; user-select:none;
+  }
+  .item:active{ cursor:grabbing; }
+  .item svg{ width:100%; height:auto; display:block; }
+
+  /* Buttons */
+  .actions{ display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin:10px 0 4px; }
+  button{
+    padding:8px 12px; border:1px solid #d9bfd3; border-radius:12px; background:#fff; cursor:pointer;
+  }
+  .primary{ background:linear-gradient(90deg,#ffc2e6,#d8c7ff); border-color:#cfb3e7; }
+  .ghost{ background:#fff; }
+
+  /* Sparkles */
+  .sparkle{ position:absolute; pointer-events:none; animation:pop .8s ease-out forwards; }
+  @keyframes pop{
+    0%{ transform:translate(-50%,-50%) scale(.2); opacity:0;}
+    30%{ opacity:1;}
+    100%{ transform:translate(-50%,-120%) scale(1.4); opacity:0;}
+  }
+
+  /* Drag helper */
+  .dragGhost{
+    position:fixed; z-index:9999; pointer-events:none; width:90px; opacity:.9; filter:drop-shadow(0 6px 10px rgba(0,0,0,.2));
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>👑 Princess Dress-Up Adventure</h1>
+    <div class="actions">
+      <button id="btnRandom" class="primary">✨ Random Outfit</button>
+      <button id="btnClear" class="ghost">🧼 Clear</button>
+      <button id="btnSave" class="ghost">📸 Save Picture</button>
+    </div>
+
+    <div class="ui">
+      <!-- Palette -->
+      <div class="panel">
+        <div class="tabs" id="tabs"></div>
+        <div class="grid" id="grid"></div>
+      </div>
+
+      <!-- Stage -->
+      <div class="stage" id="stage" aria-label="Princess stage">
+        <!-- Princess base (SVG) -->
+        <svg class="princess" viewBox="0 0 300 480" aria-label="Princess">
+          <!-- hair -->
+          <ellipse cx="150" cy="120" rx="90" ry="90" fill="#7a4a24"/>
+          <!-- face -->
+          <circle cx="150" cy="140" r="55" fill="#ffdfc9" stroke="#e3b7a1" />
+          <!-- eyes -->
+          <circle cx="132" cy="140" r="6" fill="#3b2f2a"/>
+          <circle cx="168" cy="140" r="6" fill="#3b2f2a"/>
+          <!-- smile -->
+          <path d="M125 156 Q150 172 175 156" stroke="#d17878" stroke-width="3" fill="none" stroke-linecap="round"/>
+          <!-- hair lower -->
+          <path d="M60,150 C60,270 120,290 150,290 C180,290 240,270 240,150" fill="#7a4a24"/>
+          <!-- neck -->
+          <rect x="140" y="190" width="20" height="24" fill="#ffdfc9"/>
+          <!-- base dress (simple pastel) -->
+          <path d="M80,260 Q150,220 220,260 L260,420 Q150,470 40,420 Z" fill="#f7d5ff"/>
+          <!-- arms -->
+          <path d="M80,260 Q60,280 60,320" stroke="#ffdfc9" stroke-width="18" fill="none" stroke-linecap="round"/>
+          <path d="M220,260 Q240,280 240,320" stroke="#ffdfc9" stroke-width="18" fill="none" stroke-linecap="round"/>
+          <!-- shoes base -->
+          <ellipse cx="110" cy="450" rx="34" ry="12" fill="#f5c6da"/>
+          <ellipse cx="190" cy="450" rx="34" ry="12" fill="#f5c6da"/>
+        </svg>
+
+        <!-- Outfit slots -->
+        <div class="slot head" data-slot="head"></div>
+        <div class="slot body" data-slot="body"></div>
+        <div class="slot feet" data-slot="feet"></div>
+        <div class="slot hand" data-slot="hand"></div>
+
+        <div class="floor"></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  // Simple inline SVG parts (no external files)
+  const PARTS = {
+    head: [
+      {name:"Golden Crown", svg:`<svg viewBox="0 0 300 120"><g transform="translate(0,10)">
+          <path d="M20,90 L280,90 L250,40 L210,70 L180,20 L150,65 L120,20 L90,70 L50,40 Z" fill="#ffd54a" stroke="#b7860b" stroke-width="4"/>
+          <circle cx="180" cy="20" r="8" fill="#ff6bcb"/><circle cx="120" cy="20" r="8" fill="#9ad0ff"/><circle cx="150" cy="65" r="7" fill="#98f5a5"/>
+        </g></svg>`},
+      {name:"Flower Tiara", svg:`<svg viewBox="0 0 300 120"><g transform="translate(0,25)">
+          <path d="M40,70 Q150,10 260,70" stroke="#ff9ecf" stroke-width="10" fill="none" stroke-linecap="round"/>
+          ${flower(80,55)} ${flower(150,35)} ${flower(220,55)}
+        </g></svg>`},
+      {name:"Sparkly Bow", svg:`<svg viewBox="0 0 300 120"><g transform="translate(90,20)">${bow(120,60,90,"#ff87b7","#ffbad3")}</g></svg>`},
+    ],
+    body: [
+      {name:"Pink Gown", svg:`<svg viewBox="0 0 400 380"><g transform="translate(0,-10)">
+          <path d="M120,60 Q200,20 280,60 L330,220 Q200,300 70,220 Z" fill="#ffb3d6" stroke="#e17fb2" stroke-width="4"/>
+          ${sparklePath(130,120)} ${sparklePath(260,120)} ${sparklePath(200,160)}
+        </g></svg>`},
+      {name:"Blue Gown", svg:`<svg viewBox="0 0 400 380"><g transform="translate(0,-10)">
+          <path d="M120,60 Q200,15 280,60 L330,220 Q200,300 70,220 Z" fill="#a9d2ff" stroke="#6aa7e9" stroke-width="4"/>
+          ${sparklePath(150,140,"#ffffff")} ${sparklePath(240,150,"#ffffff")}
+        </g></svg>`},
+      {name:"Purple Gown", svg:`<svg viewBox="0 0 400 380"><g transform="translate(0,-10)">
+          <path d="M120,60 Q200,25 280,60 L330,220 Q200,300 70,220 Z" fill="#cbb0ff" stroke="#a084f5" stroke-width="4"/>
+          ${sparklePath(210,140)} ${sparklePath(170,180)}
+        </g></svg>`},
+    ],
+    feet: [
+      {name:"Pink Shoes", svg:`<svg viewBox="0 0 300 100">
+          <ellipse cx="100" cy="60" rx="60" ry="20" fill="#ff9ecf"/><ellipse cx="200" cy="60" rx="60" ry="20" fill="#ff9ecf"/>
+        </svg>`},
+      {name:"Blue Shoes", svg:`<svg viewBox="0 0 300 100">
+          <ellipse cx="100" cy="60" rx="60" ry="20" fill="#9ad0ff"/><ellipse cx="200" cy="60" rx="60" ry="20" fill="#9ad0ff"/>
+        </svg>`},
+      {name:"Glitter Shoes", svg:`<svg viewBox="0 0 300 100">
+          <ellipse cx="100" cy="60" rx="60" ry="20" fill="#ffd6f2"/><ellipse cx="200" cy="60" rx="60" ry="20" fill="#ffd6f2"/>
+          ${sparklePath(70,50)} ${sparklePath(230,50)}
+        </svg>`},
+    ],
+    hand: [
+      {name:"Magic Wand", svg:`<svg viewBox="0 0 300 200">
+          <rect x="138" y="60" width="12" height="120" rx="6" fill="#caa26b"/>
+          ${star(144,60,18,"#ffd54a")}
+        </svg>`},
+      {name:"Heart Balloon", svg:`<svg viewBox="0 0 300 200">
+          <path d="M150,50 C150,10 210,10 210,50 C210,90 150,120 150,120 C150,120 90,90 90,50 C90,10 150,10 150,50 Z" fill="#ff87b7"/>
+          <path d="M150,120 L150,180" stroke="#ff87b7" stroke-width="4"/>
+        </svg>`},
+      {name:"Necklace", svg:`<svg viewBox="0 0 300 200">
+          <path d="M90,120 Q150,160 210,120" stroke="#ffd54a" stroke-width="10" fill="none" stroke-linecap="round"/>
+        </svg>`},
+    ]
+  };
+
+  // helpers to draw decorative SVGs
+  function flower(x,y){ return `
+    <g transform="translate(${x},${y})">
+      <circle r="10" fill="#ffd54a"/>
+      ${[0,60,120,180,240,300].map(a=>`<ellipse rx="8" ry="16" transform="rotate(${a}) translate(0,-15)" fill="#ff87b7"/>`).join("")}
+    </g>`;}
+  function star(x,y,r,color="#ffd54a"){
+    const p = [];
+    for(let i=0;i<10;i++){
+      const a = (Math.PI*2*i)/10 - Math.PI/2;
+      const rad = i%2? r*0.45 : r;
+      p.push(`${x+Math.cos(a)*rad},${y+Math.sin(a)*rad}`);
+    }
+    return `<polygon points="${p.join(" ")}" fill="${color}" stroke="#caa26b" stroke-width="2"/>`;
+  }
+  function sparklePath(x,y,color="#ffffff"){ return `<circle cx="${x}" cy="${y}" r="3" fill="${color}" />`; }
+  function bow(x,y,w,c1,c2){
+    return `
+      <g transform="translate(${x},${y})">
+        <path d="M-60,0 C-40,-40 -10,-30 0,0 C-10,30 -40,40 -60,0" fill="${c1}" stroke="#b35a86" stroke-width="3"/>
+        <circle r="12" fill="${c2}" stroke="#b35a86" stroke-width="3"/>
+        <path d="M60,0 C40,-40 10,-30 0,0 C10,30 40,40 60,0" fill="${c1}" stroke="#b35a86" stroke-width="3"/>
+      </g>`;
+  }
+
+  // Build UI
+  const tabs = [
+    {key:'head', label:'👑 Crowns'},
+    {key:'body', label:'👗 Dresses'},
+    {key:'feet', label:'👠 Shoes'},
+    {key:'hand', label:'✨ Accessories'},
+  ];
+  const tabBar = document.getElementById('tabs');
+  const grid = document.getElementById('grid');
+  let activeKey = 'body';
+
+  tabs.forEach(t=>{
+    const b = document.createElement('button');
+    b.className = 'tab' + (t.key===activeKey?' active':'');
+    b.textContent = t.label;
+    b.onclick = ()=> { activeKey=t.key; renderGrid(); updateTabs(); };
+    tabBar.appendChild(b);
+  });
+  function updateTabs(){
+    [...tabBar.children].forEach((c,i)=> c.classList.toggle('active', tabs[i].key===activeKey));
+  }
+
+  function renderGrid(){
+    grid.innerHTML = '';
+    PARTS[activeKey].forEach((p,idx)=>{
+      const div = document.createElement('div');
+      div.className = 'item';
+      div.draggable = true;
+      div.dataset.slot = activeKey;
+      div.dataset.index = idx;
+      div.innerHTML = p.svg;
+      // click to equip
+      div.addEventListener('click', ()=> equip(activeKey, idx));
+      // drag helpers
+      div.addEventListener('dragstart', dragStart);
+      grid.appendChild(div);
+    });
+  }
+  renderGrid();
+
+  // Equipping
+  const stage = document.getElementById('stage');
+  const headSlot = stage.querySelector('.slot.head');
+  const bodySlot = stage.querySelector('.slot.body');
+  const feetSlot = stage.querySelector('.slot.feet');
+  const handSlot = stage.querySelector('.slot.hand');
+  const SLOT_MAP = { head:headSlot, body:bodySlot, feet:feetSlot, hand:handSlot };
+
+  function equip(slotKey, idx){
+    const container = SLOT_MAP[slotKey];
+    container.innerHTML = PARTS[slotKey][idx].svg;
+    sparkle(container);
+  }
+  function clearAll(){
+    Object.values(SLOT_MAP).forEach(e=> e.innerHTML = '');
+  }
+  function randomise(){
+    Object.keys(SLOT_MAP).forEach(slot=>{
+      const arr = PARTS[slot]; equip(slot, Math.floor(Math.random()*arr.length));
+    });
+  }
+
+  // Sparkle animation
+  function sparkle(targetEl){
+    const rect = targetEl.getBoundingClientRect();
+    const s = document.createElement('div');
+    s.className = 'sparkle';
+    s.style.left = (rect.left + rect.width/2) + 'px';
+    s.style.top = (rect.top + rect.height/2) + 'px';
+    s.textContent = '✨';
+    document.body.appendChild(s);
+    setTimeout(()=> s.remove(), 800);
+  }
+
+  // Drag & drop (with floating ghost)
+  let ghost=null;
+  function dragStart(e){
+    const slot = e.currentTarget.dataset.slot;
+    const idx = e.currentTarget.dataset.index;
+    e.dataTransfer.setData('text/plain', JSON.stringify({slot, idx}));
+    // custom ghost
+    ghost = e.currentTarget.cloneNode(true);
+    ghost.className = 'dragGhost';
+    document.body.appendChild(ghost);
+  }
+  document.addEventListener('dragover', e=>{
+    if (ghost){ ghost.style.left = (e.pageX-45)+'px'; ghost.style.top = (e.pageY-45)+'px'; }
+    e.preventDefault();
+  });
+  document.addEventListener('drop', e=>{
+    e.preventDefault();
+    if (!e.dataTransfer) return;
+    const data = e.dataTransfer.getData('text/plain');
+    if (!data) return;
+    const {slot, idx} = JSON.parse(data);
+    // If dropped anywhere on stage, equip; otherwise ignore
+    if (stage.contains(e.target)){
+      equip(slot, +idx);
+    }
+    if (ghost){ ghost.remove(); ghost=null; }
+  });
+  document.addEventListener('dragend', ()=>{ if (ghost){ ghost.remove(); ghost=null; } });
+
+  // Buttons
+  document.getElementById('btnRandom').onclick = randomise;
+  document.getElementById('btnClear').onclick  = clearAll;
+
+  // Save picture (basic): uses html2canvas-like trick via SVG serialization
+  // To keep it dependency-free, we snapshot stage’s DOM into an SVG foreignObject.
+  document.getElementById('btnSave').onclick = async ()=>{
+    const dataUrl = await snapshotStage();
+    // download
+    const a = document.createElement('a');
+    a.href = dataUrl; a.download = 'princess-dress-up.png'; a.click();
+  };
+
+  async function snapshotStage(){
+    const el = stage.cloneNode(true);
+    // Remove sparkles or transient elements if any
+    el.querySelectorAll('.sparkle, .dragGhost').forEach(n=> n.remove());
+    // Wrap in foreignObject
+    const w = stage.clientWidth, h = stage.clientHeight;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
+      <foreignObject width="100%" height="100%">${new XMLSerializer().serializeToString(el)}</foreignObject>
+    </svg>`;
+    const blob = new Blob([svg], {type:'image/svg+xml;charset=utf-8'});
+    const url = URL.createObjectURL(blob);
+    const img = new Image(); img.src = url;
+    await img.decode();
+    const canvas = document.createElement('canvas'); canvas.width=w; canvas.height=h;
+    const ctx = canvas.getContext('2d'); ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,w,h);
+    ctx.drawImage(img,0,0); URL.revokeObjectURL(url);
+    return canvas.toDataURL('image/png');
+  }
+
+  // Start with a cute default
+  equip('body', 0); equip('head', 0); equip('feet', 0);
+
+})();
+</script>
+</body>
+</html>
